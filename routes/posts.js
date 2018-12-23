@@ -54,6 +54,31 @@ router.post('/', (req, res, next) => {
         }
 });
 
+/* UPDATE posts */
+router.put('/:id', (req, res, next) => {
+        if (!req.params.id) {
+            res.status(203).json({
+                success: false,
+                message: `Missing post id. Nothing to update.`
+            })
+        } else {
+            Post.updateOne({ _id: req.params.id }, {...req.body})
+                .then(result => {
+                    res.status(200).json({
+                        success: true,
+                        message: `Post ${req.body.id} updated!`
+                    });
+                })
+                .catch(err => {
+                    console.log(err.message);
+                    res.status(500).json({
+                        success: false,
+                        message: `Post ${req.body.id} NOT updated! Try again later.`
+                    });
+                })
+        }
+});
+
 /* DELETE posts */
 router.delete('/:id', (req, res, next) => {
         if (!req.params.id) {
@@ -72,7 +97,7 @@ router.delete('/:id', (req, res, next) => {
                 .catch(err => {
                     res.status(500).json({
                         success: false,
-                        message: `Post ${req.params.id} NOT deleted!`
+                        message: `Post ${req.params.id} NOT deleted! Try again later.`
                     });
                 })
         }
