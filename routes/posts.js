@@ -1,6 +1,29 @@
 var express = require('express');
 var router = express.Router();
-const mongoose = require('mongoose');
+var mongoose = require('mongoose');
+var multer = require('multer');
+
+const MIME_TYPE_MAP = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg'
+};
+
+let multerStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const isValid = MIME_TYPE_MAP[file.mimetype];
+        let error = new Error("Invalid Mime-Type");
+        if(isValid){
+            error = null;
+        }
+        cb(error, "public/uploads/images");
+    },
+    filename: (req, file, cb) => {
+        const name = file.originalname.toLowerCase().replace(/ /g, '-');
+        const ext = MIME_TYPE_MAP[file.mimetype];
+        cb(null, `${name}_${Date.now()}.${ext}`);
+    }
+});
 
 mongoose.connect("mongodb://localhost:27017/mean-stack", { useNewUrlParser: true })
     .then(() => {
@@ -23,7 +46,8 @@ router.get('/', (req, res, next) => {
                     return {
                         id: doc._id,
                         title: doc.title,
-                        content: doc.content
+                        content: doc.content,
+                        image: doc.image
                     }
                 })
             });
@@ -37,32 +61,40 @@ router.get('/', (req, res, next) => {
 });
 
 /* POST posts */
-router.post('/', (req, res, next) => {
-        if (!req.body.newPost) {
-            res.status(203).json({
-                success: false,
-                message: `New post missing, nothing inserted`
-            })
-        } else {
-            const newPost = new Post(req.body.newPost);
-            newPost.save()
-                .then(result => {
-                    res.status(200).json({
-                        success: true
-                    });
-                });
-        }
+router.post('/', multer({ storage: multerStorage }).single('image'), (req, res, next) => {
+    // const url = `${req.protocol}://${req.get('host')}`;
+    const newPost = new Post({
+        title: req.body.title,
+        content: req.body.content,
+        image: req.file.filename
+    });
+    newPost.save()
+        .then(createdPost => {
+            res.status(200).json({
+                success: true,
+                post: {
+                    id: createdPost._id,
+                    ...createdPost
+                }
+            });
+        });
 });
 
 /* UPDATE posts */
-router.put('/:id', (req, res, next) => {
+router.put('/:id',
+    multer({storage: multerStorage}).single('image'),
+    (req, res, next) => {
         if (!req.params.id) {
             res.status(203).json({
                 success: false,
                 message: `Missing post id. Nothing to update.`
             })
         } else {
-            Post.updateOne({ _id: req.params.id }, {...req.body})
+            let updateData = {...req.body};
+            if (req.file) {
+                updateData.image = req.file.filename
+            }
+            Post.updateOne({ _id: req.params.id }, updateData)
                 .then(result => {
                     res.status(200).json({
                         success: true,
