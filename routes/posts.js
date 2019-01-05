@@ -3,6 +3,8 @@ var router = express.Router();
 var mongoose = require('mongoose');
 var multer = require('multer');
 
+const checkAuth = require('../middleware/check-auth');
+
 const MIME_TYPE_MAP = {
     'image/png': 'png',
     'image/jpeg': 'jpg',
@@ -73,7 +75,7 @@ router.get('/', (req, res, next) => {
 });
 
 /* POST posts */
-router.post('/', multer({storage: multerStorage}).single('image'), (req, res, next) => {
+router.post('/', checkAuth, multer({storage: multerStorage}).single('image'), (req, res, next) => {
     // const url = `${req.protocol}://${req.get('host')}`;
     const newPost = new Post({
         title: req.body.title,
@@ -93,7 +95,7 @@ router.post('/', multer({storage: multerStorage}).single('image'), (req, res, ne
 });
 
 /* UPDATE posts */
-router.put('/:id',
+router.put('/:id', checkAuth,
     multer({storage: multerStorage}).single('image'),
     (req, res, next) => {
         if (!req.params.id) {
@@ -124,7 +126,7 @@ router.put('/:id',
     });
 
 /* DELETE posts */
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', checkAuth, (req, res, next) => {
     if (!req.params.id) {
         res.status(203).json({
             success: false,
