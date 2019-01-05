@@ -13,7 +13,7 @@ let multerStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const isValid = MIME_TYPE_MAP[file.mimetype];
         let error = new Error("Invalid Mime-Type");
-        if(isValid){
+        if (isValid) {
             error = null;
         }
         cb(error, "public/uploads/images");
@@ -25,7 +25,7 @@ let multerStorage = multer.diskStorage({
     }
 });
 
-mongoose.connect("mongodb://localhost:27017/mean-stack", { useNewUrlParser: true })
+mongoose.connect("mongodb://localhost:27017/mean-stack", {useNewUrlParser: true})
     .then(() => {
         console.info('Connected to mean-mongo');
     })
@@ -38,19 +38,30 @@ const Post = require('../models/post');
 
 /* GET posts */
 router.get('/', (req, res, next) => {
-    Post.find()
+    const currentPage = parseInt(req.query['page']);
+    const pageSize = parseInt(req.query['pagesize']);
+    const postQuery = Post.find();
+    if (currentPage && pageSize) {
+        postQuery.skip(pageSize * (currentPage - 1))
+            .limit(pageSize)
+    }
+    postQuery
         .then(docs => {
-            res.status(200).json({
-                success: true,
-                posts: docs.map(doc => {
-                    return {
-                        id: doc._id,
-                        title: doc.title,
-                        content: doc.content,
-                        image: doc.image
-                    }
-                })
+            posts = docs.map(doc => {
+                return {
+                    id: doc._id,
+                    title: doc.title,
+                    content: doc.content,
+                    image: doc.image
+                }
             });
+            return Post.estimatedDocumentCount();
+        }).then(count => {
+        res.status(200).json({
+            success: true,
+            posts,
+            count
+        });
         })
         .catch(err => {
             res.status(400).json({
@@ -58,10 +69,11 @@ router.get('/', (req, res, next) => {
                 message: err.message
             });
         });
+
 });
 
 /* POST posts */
-router.post('/', multer({ storage: multerStorage }).single('image'), (req, res, next) => {
+router.post('/', multer({storage: multerStorage}).single('image'), (req, res, next) => {
     // const url = `${req.protocol}://${req.get('host')}`;
     const newPost = new Post({
         title: req.body.title,
@@ -94,7 +106,7 @@ router.put('/:id',
             if (req.file) {
                 updateData.image = req.file.filename
             }
-            Post.updateOne({ _id: req.params.id }, updateData)
+            Post.updateOne({_id: req.params.id}, updateData)
                 .then(result => {
                     res.status(200).json({
                         success: true,
@@ -109,30 +121,30 @@ router.put('/:id',
                     });
                 })
         }
-});
+    });
 
 /* DELETE posts */
 router.delete('/:id', (req, res, next) => {
-        if (!req.params.id) {
-            res.status(203).json({
-                success: false,
-                message: `Missing post id. Nothing to delete.`
+    if (!req.params.id) {
+        res.status(203).json({
+            success: false,
+            message: `Missing post id. Nothing to delete.`
+        })
+    } else {
+        Post.deleteOne({_id: req.params.id})
+            .then(result => {
+                res.status(200).json({
+                    success: true,
+                    message: `Post ${req.params.id} deleted!`
+                });
             })
-        } else {
-            Post.deleteOne({ _id: req.params.id })
-                .then(result => {
-                    res.status(200).json({
-                        success: true,
-                        message: `Post ${req.params.id} deleted!`
-                    });
-                })
-                .catch(err => {
-                    res.status(500).json({
-                        success: false,
-                        message: `Post ${req.params.id} NOT deleted! Try again later.`
-                    });
-                })
-        }
+            .catch(err => {
+                res.status(500).json({
+                    success: false,
+                    message: `Post ${req.params.id} NOT deleted! Try again later.`
+                });
+            })
+    }
 });
 
 module.exports = router;
