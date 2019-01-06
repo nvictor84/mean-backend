@@ -39,6 +39,7 @@ router.post('/signup', function (req, res, next) {
                     res.status(500)
                         .json({
                             success: false,
+                            message: `An account with the email ${newUser.email} already exists.`,
                             error: err.message
                         })
                 })
@@ -74,7 +75,8 @@ router.post('/login', function (req, res, next) {
                         success: true,
                         message: 'Access granted! Welcome!',
                         token,
-                        expiresIn: 3600
+                        expiresIn: 3600,
+                        userId: user._id
                     });
                 });
         })

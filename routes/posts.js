@@ -54,7 +54,8 @@ router.get('/', (req, res, next) => {
                     id: doc._id,
                     title: doc.title,
                     content: doc.content,
-                    image: doc.image
+                    image: doc.image,
+                    creator: doc.creator
                 }
             });
             return Post.estimatedDocumentCount();
@@ -80,7 +81,8 @@ router.post('/', checkAuth, multer({storage: multerStorage}).single('image'), (r
     const newPost = new Post({
         title: req.body.title,
         content: req.body.content,
-        image: req.file.filename
+        image: req.file.filename,
+        creator: req.userData.userId
     });
     newPost.save()
         .then(createdPost => {
@@ -108,12 +110,19 @@ router.put('/:id', checkAuth,
             if (req.file) {
                 updateData.image = req.file.filename
             }
-            Post.updateOne({_id: req.params.id}, updateData)
+            Post.updateOne({_id: req.params.id, creator: req.userData.userId }, updateData)
                 .then(result => {
-                    res.status(200).json({
-                        success: true,
-                        message: `Post ${req.body.id} updated!`
-                    });
+                    if (result.nModified > 0) {
+                        res.status(200).json({
+                            success: true,
+                            message: `Post ${req.body.id} updated!`
+                        });
+                    } else {
+                        res.status(401).json({
+                            success: false,
+                            message: `You are NOT AUTHORIZED to update this post!`
+                        });
+                    }
                 })
                 .catch(err => {
                     console.log(err.message);
@@ -133,12 +142,19 @@ router.delete('/:id', checkAuth, (req, res, next) => {
             message: `Missing post id. Nothing to delete.`
         })
     } else {
-        Post.deleteOne({_id: req.params.id})
+        Post.deleteOne({_id: req.params.id, creator: req.userData.userId })
             .then(result => {
-                res.status(200).json({
-                    success: true,
-                    message: `Post ${req.params.id} deleted!`
-                });
+                if (result.n > 0) {
+                    res.status(200).json({
+                        success: true,
+                        message: `Post ${req.params.id} deleted!`
+                    });
+                } else {
+                    res.status(401).json({
+                        success: false,
+                        message: `You are NOT AUTHORIZED to delete this post!`
+                    });
+                }
             })
             .catch(err => {
                 res.status(500).json({
